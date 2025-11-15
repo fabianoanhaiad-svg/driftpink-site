@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Loja Driftpink - Cadastro</title>
+<style>
+  :root{--rosa:#ff69b4;--rosa-esc:#e0569d;--bg:#f6f4f4}
+  body{font-family:Arial,Helvetica,sans-serif;background:var(--bg);margin:0;padding:20px;color:#222}
+  .menu-lateral{position:fixed;top:0;left:0;width:220px;height:100vh;background:#212121;padding-top:20px;display:flex;flex-direction:column;gap:10px}
+  .menu-lateral a{color:#fff;text-decoration:none;padding:12px 20px;font-size:18px;border-radius:5px;display:block}
+  .menu-lateral a:hover{background:#333}
+  body{margin-left:240px}
+  .container{max-width:980px;margin:0 auto;background:#fff;padding:20px;border-radius:8px;box-shadow:0 0 8px rgba(0,0,0,0.08)}
+  h1{color:var(--rosa);margin-top:0}
+  form{display:grid;grid-template-columns:1fr 160px;gap:12px;align-items:center}
+  label{display:block;font-weight:700;margin-bottom:6px}
+  input[type="text"], input[type="number"], input[type="file"]{padding:8px;border:1px solid #ccc;border-radius:6px;width:100%;box-sizing:border-box}
+  button{background:var(--rosa);color:#fff;border:none;padding:10px 14px;border-radius:6px;cursor:pointer;font-weight:700}
+  button:hover{background:var(--rosa-esc)}
+  #preview{max-width:150px;max-height:120px;border-radius:6px;display:block;object-fit:cover}
+  table{width:100%;border-collapse:collapse;margin-top:18px}
+  th,td{padding:10px;border-bottom:1px solid #eee;text-align:left}
+  .prod-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:18px}
+  .card{background:#fff;border:1px solid #eee;padding:12px;border-radius:8px;text-align:center}
+  .card img{width:100%;height:140px;object-fit:cover;border-radius:6px}
+  .small-btn{padding:6px 8px;border-radius:6px;border:none;cursor:pointer;font-weight:700}
+  .del{background:#ff6b6b;color:#fff}
+  .del:hover{opacity:0.9}
+  .info{font-size:0.9em;color:#666}
+  @media(max-width:700px){form{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<div class="menu-lateral">
+  <h2 style="color:#fff;text-align:center;margin:0 0 6px 0">Menu</h2>
+  <a href="index.html">🏪 Loja</a>
+  <a href="cadastramento.html">➕ Cadastrar Produto</a>
+  <a href="contato.html">📞 Contato</a>
+</div>
+
+<div class="container">
+  <h1>Cadastro de Produtos — Driftpink</h1>
+
+  <section aria-labelledby="cadastro">
+    <h2 id="cadastro" style="margin:8px 0">Cadastrar novo produto</h2>
+
+    <form id="productForm">
+      <div>
+        <label for="productName">Nome do produto</label>
+        <input id="productName" type="text" required placeholder="Ex: Camiseta Rosa">
+
+        <label for="productPrice" style="margin-top:10px">Preço (R$)</label>
+        <input id="productPrice" type="number" min="0" step="0.01" required placeholder="0.00">
+
+        <label for="productImage" style="margin-top:10px">Imagem</label>
+        <input id="productImage" type="file" accept="image/*" required>
+      </div>
+
+      <div style="display:flex;flex-direction:column;align-items:center;gap:10px">
+        <div style="text-align:center">
+          <label style="font-weight:700;display:block;margin-bottom:6px">Pré-visualização</label>
+          <img id="preview" alt="Pré-visualização da imagem" src="" style="display:none">
+        </div>
+        <div style="width:100%">
+          <button id="submitBtn" type="submit">Cadastrar</button>
+        </div>
+      </div>
+    </form>
+  </section>
+
+  <section style="margin-top:20px">
+    <h2 style="margin:0 0 8px 0">Produtos Cadastrados</h2>
+    <div class="info">Os produtos ficam salvos no seu navegador (localStorage) e persistem ao recarregar.</div>
+
+    <table id="productsTable" aria-live="polite">
+      <thead>
+        <tr><th>ID</th><th>Nome</th><th>Preço (R$)</th><th>Ações</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <h3 style="margin-top:18px">Loja Virtual</h3>
+    <div class="prod-grid" id="lojaProdutos"></div>
+  </section>
+</div>
+
+<script>
+(function(){
+  const KEY = "produtos";
+  const productForm = document.getElementById("productForm");
+  const productNameInput = document.getElementById("productName");
+  const productPriceInput = document.getElementById("productPrice");
+  const productImageInput = document.getElementById("productImage");
+  const previewImg = document.getElementById("preview");
+  const productsTableBody = document.querySelector("#productsTable tbody");
+  const lojaProdutos = document.getElementById("lojaProdutos");
+  const submitBtn = document.getElementById("submitBtn");
+
+  // Carrega produtos do localStorage com segurança
+  let products;
+  try {
+    const raw = localStorage.getItem(KEY);
+    products = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(products)) products = [];
+  } catch (e) {
+    console.warn("localStorage corrompido ou JSON inválido - resetando lista", e);
+    products = [];
+  }
+
+  // Gera nextId seguro (usa timestamp se necessário)
+  let nextId = products.length > 0 ? Math.max(...products.map(p => p.id || 0)) + 1 : Date.now();
+
+  // Mostrar preview quando escolher imagem
+  productImageInput.addEventListener("change", () => {
+    const file = productImageInput.files[0];
+    if (!file) { previewImg.style.display = "none"; previewImg.src = ""; return; }
+    const reader = new FileReader();
+    reader.onload = e => {
+      previewImg.src = e.target.result;
+      previewImg.style.display = "block";
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // Renderiza lista (tabela + cards)
+  function render() {
+    // tabela
+    productsTableBody.innerHTML = "";
+    lojaProdutos.innerHTML = "";
+    products.forEach(prod => {
+      // linha tabela
+      const tr = document.createElement("tr");
+      const tdId = document.createElement("td");
+      tdId.textContent = prod.id;
+      const tdName = document.createElement("td");
+      tdName.textContent = prod.name;
+      const tdPrice = document.createElement("td");
+      tdPrice.textContent = Number(prod.price).toFixed(2);
+      const tdActions = document.createElement("td");
+
+      // botão excluir
+      const btnExcluir = document.createElement("button");
+      btnExcluir.textContent = "Excluir";
+      btnExcluir.className = "small-btn del";
+      btnExcluir.addEventListener("click", () => {
+        if (!confirm(`Excluir o produto "${prod.name}"?`)) return;
+        excluirProduto(prod.id);
+      });
+
+      tdActions.appendChild(btnExcluir);
+      tr.appendChild(tdId); tr.appendChild(tdName); tr.appendChild(tdPrice); tr.appendChild(tdActions);
+      productsTableBody.appendChild(tr);
+
+      // card loja
+      const card = document.createElement("div");
+      card.className = "card";
+      const img = document.createElement("img");
+      img.src = prod.image;
+      img.alt = prod.name;
+      const h3 = document.createElement("h3");
+      h3.textContent = prod.name;
+      const p = document.createElement("p");
+      p.textContent = `R$ ${Number(prod.price).toFixed(2)}`;
+
+      card.appendChild(img);
+      card.appendChild(h3);
+      card.appendChild(p);
+      lojaProdutos.appendChild(card);
+    });
+  }
+
+  // Salva no localStorage com segurança
+  function salvar() {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(products));
+    } catch (e) {
+      alert("Erro ao salvar os dados no navegador: " + e.message);
+      console.error(e);
+    }
+  }
+
+  // Excluir por id
+  function excluirProduto(id) {
+    products = products.filter(p => p.id !== id);
+    salvar();
+    render();
+  }
+
+  // Handle submit (cadastrar)
+  productForm.addEventListener("submit", (ev) => {
+    ev.preventDefault();
+
+    const name = productNameInput.value.trim();
+    const priceRaw = productPriceInput.value;
+    const file = productImageInput.files[0];
+
+    if (!name) { alert("Preencha o nome do produto."); return; }
+    if (!priceRaw || isNaN(parseFloat(priceRaw))) { alert("Informe um preço válido."); return; }
+    if (!file) { alert("Selecione uma imagem."); return; }
+
+    submitBtn.disabled = true; // evita clicks duplos
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const imageBase64 = e.target.result;
+
+      const produto = {
+        id: nextId++, // id único
+        name,
+        price: parseFloat(priceRaw),
+        image: imageBase64
+      };
+
+      products.push(produto);
+      salvar();
+      render();
+
+      // limpa formulário e preview
+      productForm.reset();
+      previewImg.style.display = "none";
+      previewImg.src = "";
+      submitBtn.disabled = false;
+      productNameInput.focus();
+    };
+
+    reader.onerror = (err) => {
+      submitBtn.disabled = false;
+      alert("Erro ao ler a imagem.");
+      console.error(err);
+    };
+
+    reader.readAsDataURL(file);
+  });
+
+  // primeira renderização
+  render();
+})();
+</script>
+
+</body>
+</html>
