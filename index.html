@@ -83,7 +83,6 @@
     margin-top: 10px;
   }
 
-  /* ===== LOJA VIRTUAL ===== */
   .loja {
     margin-top: 50px;
   }
@@ -168,57 +167,101 @@ window["adrum-start-time"] = new Date().getTime();
 
 </head>
 <body>
+  <!-- MENU LATERAL -->
+<div class="menu-lateral">
+  <h2 class="titulo-menu">Menu</h2>
+  <a href="pagina-loja.html">🏪 Loja</a>
+  <a href="cadastramento.html">➕ Cadastrar Produto</a>
+  <a href="contato.html">📞 Contato</a>
+</div>
+
+<div class="Menu">
+
+</div>
+
+<style>
+/* Estilo do menu lateral */
+.menu-lateral {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 220px;
+  height: 100vh;
+  background-color: #212121;
+  padding-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Título do menu */
+.titulo-menu {
+  color: #fff;
+  text-align: center;
+  margin-bottom: 20px;
+  font-size: 22px;
+}
+
+/* Links do menu */
+.menu-lateral a {
+  text-decoration: none;
+  color: white;
+  padding: 12px 20px;
+  font-size: 18px;
+  display: block;
+  border-radius: 5px;
+  transition: 0.3s;
+}
+
+/* Efeito ao passar o mouse */
+.menu-lateral a:hover {
+  background-color: #333;
+}
+
+/* Empurra o conteúdo da página para a direita */
+body {
+  margin-left: 240px;
+}
+</style>
+
 <div class="container">
   <h1>Loja Driftpink</h1>
-
-  <!-- CADASTRO DE PRODUTO -->
-  <section>
-    <h2>Cadastro de Produto</h2>
-    <form id="productForm">
-      <label for="productName">Nome do Produto:</label>
-      <input type="text" id="productName" required />
-
-      <label for="productPrice">Preço (R$):</label>
-      <input type="number" id="productPrice" min="0" step="0.01" required />
-
-      <label for="productImage">Imagem do Produto:</label>
-      <input type="file" id="productImage" accept="image/*" required />
-      <img id="preview" alt="Pré-visualização da imagem" />
-
-      <button type="submit">Cadastrar Produto</button>
-    </form>
-
-    <h3>Produtos Cadastrados</h3>
-    <table id="productsTable">
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Nome</th>
-          <th>Preço (R$)</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </section>
-
-  <!-- RASTREAMENTO -->
-  <section class="rastreamento">
-    <h2>Rastreamento de Pedido</h2>
-    <label for="orderSelect">Selecione o produto para rastrear:</label>
-    <select id="orderSelect">
-      <option value="">-- Selecione um produto --</option>
-    </select>
-    <button id="trackBtn">Rastrear Pedido</button>
-    <p id="orderStatus" class="status"></p>
-  </section>
 
   <!-- LOJA VIRTUAL -->
   <section class="loja">
     <h2>🛍️ Loja Virtual - Driftpink</h2>
     <p>Veja abaixo os produtos disponíveis:</p>
-    <div id="lojaProdutos" class="produtos-grid"></div>
+   <div id="produtos-loja" class="produtos-grid"></div>
+
   </section>
 </div>
+
+<script>
+
+  function carregarProdutos() {
+    const lista = JSON.parse(localStorage.getItem("produtos")) || [];
+    const container = document.getElementById("produtos-loja");
+
+    container.innerHTML = ""; // limpa antes de exibir
+
+    lista.forEach(prod => {
+      const card = document.createElement("div");
+      card.classList.add("produto-card");
+
+      card.innerHTML = `
+        <img src="${prod.imagem}" class="produto-img">
+        <div class="produto-nome">${prod.nome}</div>
+        <div class="produto-preco">R$ ${Number(prod.preco).toFixed(2)}</div>
+      `;
+
+      container.appendChild(card);
+    });
+  }
+
+  // Carrega os produtos ao abrir a página
+  carregarProdutos();
+</script>
+
 
 <script>
   const productForm = document.getElementById('productForm');
@@ -236,13 +279,7 @@ window["adrum-start-time"] = new Date().getTime();
   let nextId = 1;
   let trackingInterval = null;
 
-  const orderStatuses = [
-    'Pedido recebido',
-    'Processando',
-    'Enviado',
-    'Em transporte',
-    'Entregue'
-  ];
+  ;
 
   // Pré-visualização da imagem antes de cadastrar
   productImageInput.addEventListener('change', () => {
@@ -273,12 +310,6 @@ window["adrum-start-time"] = new Date().getTime();
         <td>${prod.price.toFixed(2)}</td>
       `;
       productsTableBody.appendChild(row);
-
-      // select rastreamento
-      const option = document.createElement('option');
-      option.value = prod.id;
-      option.textContent = `${prod.name} (R$ ${prod.price.toFixed(2)})`;
-      orderSelect.appendChild(option);
 
       // produto na loja virtual
       const card = document.createElement('div');
@@ -329,41 +360,51 @@ window["adrum-start-time"] = new Date().getTime();
     reader.readAsDataURL(file);
   });
 
-  trackBtn.addEventListener('click', () => {
-    const selectedId = parseInt(orderSelect.value);
 
-    if (!selectedId) {
-      alert('Por favor, selecione um produto para rastrear.');
-      return;
-    }
+const nome = document.getElementById("nome");
+const preco = document.getElementById("preco");
+const imagem = document.getElementById("imagem");
+const preview = document.getElementById("preview");
 
-    const product = products.find(p => p.id === selectedId);
-    if (!product) {
-      orderStatus.textContent = '';
-      alert('Produto não encontrado.');
-      return;
-    }
+imagem.addEventListener("change", () => {
+  const file = imagem.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      preview.src = e.target.result;
+      preview.style.display = "block";
+    };
+    reader.readAsDataURL(file);
+  }
+});
 
-    if (trackingInterval) {
-      clearInterval(trackingInterval);
-      trackingInterval = null;
-    }
+document.getElementById("formCadastro").addEventListener("submit", e => {
+  e.preventDefault();
 
-    let index = 0;
-    orderStatus.textContent = `Status do pedido para "${product.name}": ${orderStatuses[index]}`;
+  const file = imagem.files[0];
+  const reader = new FileReader();
 
-    trackingInterval = setInterval(() => {
-      index++;
-      if (index < orderStatuses.length) {
-        orderStatus.textContent = `Status do pedido para "${product.name}": ${orderStatuses[index]}`;
-      } else {
-        clearInterval(trackingInterval);
-        trackingInterval = null;
-      }
-    }, 5000);
-  });
+  reader.onload = e => {
+    let lista = JSON.parse(localStorage.getItem("produtos")) || [];
+    lista.push({
+      id: Date.now(),
+      nome: nome.value,
+      preco: parseFloat(preco.value),
+      imagem: e.target.result
+    });
 
-  updateProductList();
+    localStorage.setItem("produtos", JSON.stringify(lista));
+
+    alert("Produto cadastrado com sucesso!");
+
+    nome.value = "";
+    preco.value = "";
+    imagem.value = "";
+    preview.style.display = "none";
+  };
+
+  reader.readAsDataURL(file);
+});
 
 </script>
 </body>
